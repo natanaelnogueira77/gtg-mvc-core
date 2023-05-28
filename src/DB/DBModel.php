@@ -260,42 +260,6 @@ abstract class DBModel extends DataLayer
         return $result;
     }
 
-    /* public static function insertMany(array $objects): bool 
-    {
-        if(count($objects) === 0) {
-            return false;
-        }
-
-        $vars = [];
-        $sql = 'INSERT INTO ' . $this->tableName() . ' (' . implode(',', $this->attributes()) . ') VALUES ';
-
-        $errors = false;
-        foreach($objects as $object) {
-            if($object->validate()) {
-                $object->encode();
-                $sql .= '(';
-                foreach($this->attributes() as $col) {
-                    $vars[] = $object->$col;
-                    $sql .= '?,';
-                }
-                $object->decode();
-                
-                $sql[strlen($sql) - 1] = ' ';
-                $sql .= '),';
-            } else {
-                $errors = true;
-            }
-        }
-
-        if($errors) {
-            return false;
-        }
-
-        $sql[strlen($sql) - 1] = ' ';
-        $stmt = Application::$app->db->prepare($sql);
-        return $stmt->execute($vars);
-    } */
-
     public function saveMany(array $objects): bool 
     {
         if(count($objects) === 0) {
@@ -303,7 +267,7 @@ abstract class DBModel extends DataLayer
         }
 
         $vars = [];
-        $sql = 'INSERT INTO ' . $this->tableName() . ' (' . $this->primaryKey() . ',' 
+        $sql = "INSERT INTO {$this->tableName()} ({$this->primaryKey()}," 
             . implode(',', $this->attributes()) . ') VALUES ';
 
         $errors = false;
@@ -330,7 +294,7 @@ abstract class DBModel extends DataLayer
 
         $sql[strlen($sql) - 1] = ' ';
         $sql .= ' ON DUPLICATE KEY UPDATE ';
-        $sql .= $this->primaryKey() . ' = VALUES (' . $this->primaryKey() . '),';
+        $sql .= "{$this->primaryKey()} = VALUES ({$this->primaryKey()}),";
 
         foreach($this->attributes() as $attr) {
             $sql .= " ${attr} = VALUES (${attr}),";
@@ -341,7 +305,7 @@ abstract class DBModel extends DataLayer
         return $stmt->execute($vars);
     }
 
-    public static function deleteMany(array $objects): bool 
+    public function deleteMany(array $objects): bool 
     {
         $sql = "DELETE FROM {$this->tableName()} WHERE {$this->primaryKey()} IN (";
 
@@ -355,7 +319,7 @@ abstract class DBModel extends DataLayer
         return $stmt->execute($vars);
     }
 
-    public static function deleteAll(): bool 
+    public function deleteAll(): bool 
     {
         return Application::$app->db->exec("DELETE FROM {$this->tableName()}");
     }

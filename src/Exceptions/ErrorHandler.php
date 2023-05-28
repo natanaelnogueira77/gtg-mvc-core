@@ -2,6 +2,7 @@
 
 namespace GTG\MVC\Exceptions;
 
+use GTG\MVC\Application;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
@@ -16,7 +17,7 @@ class ErrorHandler
     public function __construct(int $type, string $msg, ?string $file = null, ?int $line = null) 
     {
         $this->monolog = new Logger('web');
-        $this->monolog->pushHandler(new StreamHandler(__DIR__ . '/../../errors.log', Logger::ERROR));
+        $this->monolog->pushHandler(new StreamHandler(Application::$ROOT_DIR . '/errors.log', Logger::ERROR));
         $this->monolog->pushProcessor(function ($record) {
             $record['extra']['HTTP_HOST'] = $_SERVER['HTTP_HOST'];
             $record['extra']['REQUEST_URI'] = $_SERVER['REQUEST_URI'];
@@ -95,7 +96,7 @@ class ErrorHandler
 
     protected function errorControl(): bool  
     {
-        $content = "Arquivo: {$this->file}, Linha: {$this->line}, Mensagem: {$this->msg}";
+        $content = "File: {$this->file}, Line: {$this->line}, Message: {$this->msg}";
         $this->monolog->error($content, ['logger' => true]);
         header('Location: ' . url('erro/500'));
         exit();
@@ -103,14 +104,14 @@ class ErrorHandler
 
     protected function warningControl(): bool 
     {
-        $content = "Arquivo: {$this->file}, Linha: {$this->line}, Mensagem: {$this->msg}";
+        $content = "File: {$this->file}, Line: {$this->line}, Message: {$this->msg}";
         $this->monolog->warning($content, ['logger' => true]);
         return true;
     }
     
     protected function noticeControl(): bool 
     {
-        $content = "Arquivo: {$this->file}, Linha: {$this->line}, Mensagem: {$this->msg}";
+        $content = "File: {$this->file}, Line: {$this->line}, Message: {$this->msg}";
         $this->monolog->notice($content, ['logger' => true]);
         return true;
     }
