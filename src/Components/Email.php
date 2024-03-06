@@ -4,25 +4,27 @@ namespace GTG\MVC\Components;
 
 use Exception;
 use PHPMailer\PHPMailer\PHPMailer;
-use GTG\MVC\Application;
-use GTG\MVC\Exceptions\AppException;
+use GTG\MVC\Exceptions\EmailException;
+use GTG\MVC\SMTP;
 use stdClass;
 
 class Email 
 {
-    /** @var PHPMailer */
-    private $mail;
+    private PHPMailer $mail;
+    private stdClass $data;
 
-    /** @var stdClass */
-    private $data;
+    public function __construct(
+        private SMTP $SMTP
+    ) 
+    {
+        $this->SMTP = $SMTP;
+        $this->data = new stdClass();
+        $this->setMailOptions();
+    }
 
-    /** @var AppException */
-    private $error;
-
-    public function __construct() 
+    private function setMailOptions(): void 
     {
         $this->mail = new PHPMailer(true);
-        $this->data = new stdClass();
 
         $this->mail->isSMTP();
         $this->mail->isHTML();
@@ -32,10 +34,10 @@ class Email
         $this->mail->SMTPSecure = 'ssl';
         $this->mail->CharSet = 'utf-8';
 
-        $this->mail->Host = Application::$SMTP_INFO['host'];
-        $this->mail->Port = Application::$SMTP_INFO['port'];
-        $this->mail->Username = Application::$SMTP_INFO['username'];
-        $this->mail->Password = Application::$SMTP_INFO['password'];
+        $this->mail->Host = $this->SMTP->getHost();
+        $this->mail->Port = $this->SMTP->getPort();
+        $this->mail->Username = $this->SMTP->getUsername();
+        $this->mail->Password = $this->SMTP->getPassword();
     }
 
     public function add(
@@ -65,36 +67,34 @@ class Email
         return $this;
     }
 
-    public function send(?string $fromName = null, ?string $fromEmail = null): bool 
+    public function send(?string $fromName = null, ?string $fromEmail = null): void 
     {
         try {
-            $fromName = $fromName ?? Application::$SMTP_INFO['name'];
-            $fromEmail = $fromEmail ?? Application::$SMTP_INFO['email'];
-            $this->mail->Subject = $this->data->subject;
-            $this->mail->msgHTML($this->data->body);
-            $this->mail->addAddress($this->data->recipient_email, $this->data->recipient_name);
-            $this->mail->setFrom($fromEmail, $fromName);
-
-            if(!empty($this->data->bcc)) {
-                $this->mail->addBCC($this->data->bcc);
-            }
-
-            if(!empty($this->data->attach)) {
-                foreach($this->data->attach as $path => $name) {
-                    $this->mail->addAttachment($path, $name);
-                }
-            }
-
+            $this->loadMailForSend(
+                $fromEmail ?? $this->SMTP->getFromEmail(), 
+                $fromName ?? $this->SMTP->getFromName()
+            );
             $this->mail->send();
-            return true;
         } catch(Exception $e) {
-            $this->error = new AppException($e->getMessage());
-            return false;
+            throw new EmailException('Error when sending: ' . $e->getMessage());
         }
     }
 
-    public function error(): ?AppException 
+    private function loadMailForSend(string $fromName, string $fromEmail): void 
     {
-        return $this->error;
+        $this->mail->Subject = $this->data->subject;
+        $this->mail->msgHTML($this->data->body);
+        $this->mail->addAddress($this->data->recipient_email, $this->data->recipient_name);
+        $this->mail->setFrom($fromEmail, $fromName);
+
+        if(!empty($this->data->bcc)) {
+            $this->mail->addBCC($this->data->bcc);
+        }
+
+        if(!empty($this->data->attach)) {
+            foreach($this->data->attach as $path => $name) {
+                $this->mail->addAttachment($path, $name);
+            }
+        }
     }
 }

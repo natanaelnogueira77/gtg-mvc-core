@@ -2,19 +2,17 @@
 
 namespace GTG\MVC\Components;
 
-use GTG\MVC\Exceptions\AppException;
+use GTG\MVC\Exceptions\ExcelGeneratorException;
 
 class ExcelGenerator 
 {
-    private ?array $data;
-    private ?string $filename;
     private string $content = '';
 
-    public function __construct(?array $data = null, ?string $filename = null)
-    {
-        $this->data = $data;
-        $this->filename = $filename . '.xls';
-    }
+    public function __construct(
+        private array $data = [],
+        private string $filename = ''
+    )
+    {}
 
     public function setData(array $data = []): self
     {
@@ -24,61 +22,57 @@ class ExcelGenerator
 
     public function setFilename(string $filename = ''): self 
     {
-        $this->filename = $filename . '.xls';
+        $this->filename = $filename;
         return $this;
     }
 
-    public function render(): bool
+    public function render(): self
     {
-        try {
-            if(!$this->data) {
-                throw new AppException('No data was added for the excel generation!');
-            }
+        $this->setContentFromData();
+        return $this;
+    }
 
-            function cleanData(&$str) {
-                $str = preg_replace("/\t/", "\\t", $str);
-                $str = preg_replace("/\r?\n/", "\\n", $str);
-                if(strstr($str, '"')) $str = '"' . str_replace('"', '""', $str) . '"';
-            }
+    private function setContentFromData(): void 
+    {
+        $this->content = '';
+        $this->transformDataToContent();
+    }
 
-            if(!$this->filename) {
-                $this->filename = 'website_data_' . date('Ymd') . '.xls';
-            }
-
-            $flag = false;
-            $content = '';
-
-            foreach($this->data as $row) {
-                if(!$flag) {
-                    $content .= implode("\t", array_keys($row)) . "\r\n";
-                    $flag = true;
-                }
-                
-                array_walk($row, __NAMESPACE__ . '\cleanData');
-                $content .= implode("\t", array_values($row)) . "\r\n";
-            }
-
-            $this->content = $content;
-        } catch(AppException $e) {
-            $this->error = $e;
-            return false;
+    private function transformDataToContent(): void
+    {
+        if(!$this->data) {
+            throw new ExcelGeneratorException('Error at transforming data: no data was settled!');
         }
 
-        return true;
+        foreach($this->data as $row) {
+            $this->content .= implode("\t", array_values(self::assembleRow($row))) . "\r\n";
+        }
+    }
+
+    private static function assembleRow(array $row): array 
+    {
+        array_walk($row, function (&$str) {
+            $str = preg_replace("/\t/", "\\t", $str);
+            $str = preg_replace("/\r?\n/", "\\n", $str);
+            if(strstr($str, '"')) {
+                $str = '"' . str_replace('"', '""', $str) . '"';
+            }
+        });
+
+        return $row;
     }
 
     public function stream(): void 
     {
-        header("Content-Disposition: attachment; filename=\"{$this->filename}\"");
+        if(!$this->filename) {
+            throw new ExcelGeneratorException('Error at stream: no filename was settled!');
+        }
+
+        header("Content-Disposition: attachment; filename=\"{$this->filename}.xls\"");
         header("Content-Type:   application/vnd.ms-excel; charset=utf-8");
         header("Content-type:   application/x-msexcel; charset=utf-8");
         header("Pragma: no-cache");
 
         echo utf8_decode($this->content);
-    }
-
-    public function error(): ?AppException 
-    {
-        return $this->error;
     }
 }
