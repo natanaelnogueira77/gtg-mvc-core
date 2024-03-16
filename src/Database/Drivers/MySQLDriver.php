@@ -70,7 +70,7 @@ class MySQLDriver implements Driver
                     $terms .= "{$value} AND ";
                 } elseif($column == 'search') {
                     if($value['term'] && $value['columns']) {
-                        $terms .= static::getSearch($value['term'], $value['columns']) . ' AND ';
+                        $terms .= static::getSearchFilterStatement($value['term'], $value['columns']) . ' AND ';
                     }
                 } elseif(in_array($column, ['>=', '<=', '<', '>', '!=', '<>'])) {
                     if($value) {
@@ -113,6 +113,33 @@ class MySQLDriver implements Driver
         }
 
         return $terms;
+    }
+
+    private static function getSearchFilterStatement(string $terms = '', array $attributes = []): string 
+    {
+        $query = '';
+        if($terms && $attributes) {
+            $words = explode(' ', $terms);
+            $conds = array();
+            $searches = array();
+            $numCols = count($attributes);
+    
+            foreach($words as $word) {
+                $col = 1;
+                foreach($attributes as $attr) {
+                    $open = $col == 1 ? ' ( ' : '';
+                    $close = $col == $numCols ? ' ) ' : '';
+                    $conds[] = "{$open} {$attr} LIKE '%" . $word . "%' {$close}";
+                    $col++;
+                }
+                $searches[] = implode(' OR ', $conds);
+                $conds = [];
+                $col = 1;
+            }
+    
+            $query .= implode(' AND ', $searches);
+        }
+        return $query;
     }
 
     private static function getFormatedValue(mixed $value): mixed 

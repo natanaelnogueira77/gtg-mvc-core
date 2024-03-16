@@ -1,6 +1,6 @@
 <?php
 
-namespace GTG\MVC\Components;
+namespace GTG\MVC\Utils;
 
 use Dompdf\Dompdf;
 use Dompdf\Options;

@@ -26,15 +26,26 @@ class ActiveRecordStatement
         protected string $className,
         string $tableName, 
         ?array $filters = [], 
-        string $columns = '*'
+        ?string $columns = '*',
+        ?string $statement = null
     ) 
     {
         $this->database = Application::getInstance()->database;
-        [$terms, $params] = $this->database->getDriver()->getFiltersForStatement($filters);
-        $this->statement = "SELECT {$columns} FROM {$tableName}" . (
-            $filters ? (" WHERE {$terms}") : ''
-        );
-        parse_str($params ?? '', $this->params);
+        if(!$statement) {
+            [$terms, $params] = $this->database->getDriver()->getFiltersForStatement($filters);
+            $this->statement = "SELECT {$columns} FROM {$tableName}" . (
+                $filters ? (" WHERE {$terms}") : ''
+            );
+            parse_str($params ?? '', $this->params);
+        } else {
+            $this->statement = $statement;
+        }
+    }
+
+    public function statement(string $sql): static 
+    {
+        $this->statement = $sql;
+        return $this;
     }
 
     public function group(string $column): static
@@ -101,6 +112,7 @@ class ActiveRecordStatement
             $stmt = $this->database->getConnection()->prepare(
                 $this->statement . $this->group . $this->order . $this->limit . $this->offset
             );
+
             $stmt->execute($this->params);
 
             if(!$stmt->rowCount()) {

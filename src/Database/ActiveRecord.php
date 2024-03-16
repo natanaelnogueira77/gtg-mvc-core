@@ -46,7 +46,19 @@ abstract class ActiveRecord extends Model
             static::class, 
             static::tableName(), 
             $filters, 
-            $columns
+            $columns,
+            null
+        );
+    }
+
+    public static function getByStatement(string $statement): ActiveRecordStatement 
+    {
+        return new ActiveRecordStatement(
+            static::class, 
+            static::tableName(), 
+            null, 
+            null,
+            $sql
         );
     }
 
@@ -60,11 +72,16 @@ abstract class ActiveRecord extends Model
         ))->fetch();
     }
 
+    protected function exec(string $sql): void  
+    {
+        $this->database->exec($sql);
+    }
+
     public function attributesToArray(): array 
     {
         $attributes = [];
         foreach(static::attributes() as $attr) {
-            $attributes[$attr] = $this->$attr;
+            $attributes[$attr] = $this->{$attr};
         }
 
         return $attributes;
@@ -91,10 +108,10 @@ abstract class ActiveRecord extends Model
         $primary = static::primaryKey();
 
         try {
-            if(!empty($this->$primary)) {
-                $this->update();
+            if($id = $this->{$primary}) {
+                $this->update("{$primary} = :id", "id={$id}");
             } else {
-                $this->create("{$primary} = :id", "id={$id}");
+                $this->create();
             }
         } catch(PDOException $e) {
             throw new ActiveRecordException($e->getMessage());
@@ -128,7 +145,7 @@ abstract class ActiveRecord extends Model
         return $formatted;
     }
 
-    private function update(string $terms, string $params): ?int
+    private function update(string $terms, string $params): void
     {
         $attributes = $this->columnsValuesToArray();
         if(static::hasTimestamps()) {
@@ -150,7 +167,7 @@ abstract class ActiveRecord extends Model
     public function destroy(): void
     {
         $primary = static::primaryKey();
-        $id = $this->$primary;
+        $id = $this->{$primary};
 
         if(empty($id)) {
             return;
@@ -182,9 +199,8 @@ abstract class ActiveRecord extends Model
         $modelsToBeCreated = [];
         $modelsToBeUpdated = [];
         
-        $primary = static::primaryKey();
         foreach($models as $index => $model) {
-            if(!empty($model->$primary)) {
+            if($model->{static::primaryKey()}) {
                 $modelsToBeUpdated[] = $model;
             } else {
                 $modelsToBeCreated[] = $model;
@@ -221,7 +237,7 @@ abstract class ActiveRecord extends Model
             }
         }
 
-        $attributes = static::getAttributesAndTimestampsNames();
+        $attributes = static::attributes();
         $columns = implode(', ', $attributes);
 
         foreach($modelsData as $index => $modelData) {
@@ -249,7 +265,7 @@ abstract class ActiveRecord extends Model
 
     private static function getAttributesAndTimestampsNames(): array 
     {
-        return static::attributes() + (static::hasTimestamps() ? [
+        return array_merge(static::attributes(), static::hasTimestamps() ? [
             static::CREATED_AT_COLUMN_NAME, 
             static::UPDATED_AT_COLUMN_NAME
         ] : []);
@@ -298,6 +314,6 @@ abstract class ActiveRecord extends Model
 
     private static function getColumns(): array 
     {
-        return [static::primaryKey()] + static::getAttributesAndTimestampsNames();
+        return array_merge([static::primaryKey()], static::getAttributesAndTimestampsNames());
     }
 }

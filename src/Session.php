@@ -40,6 +40,10 @@ class Session
     public function setFlash(string $key, string $message): void
     {
         if($this->flashKey) {
+            if(!$_SESSION[$this->flashKey]) {
+                $_SESSION[$this->flashKey] = [];
+            }
+            
             $_SESSION[$this->flashKey][$key] = [
                 'remove' => false,
                 'value' => $message
@@ -49,7 +53,7 @@ class Session
 
     public function getFlash(string $key): string|false
     {
-        return $this->flashKey && $_SESSION[$this->flashKey][$key]['value'] ?? false;
+        return $this->flashKey ? ($_SESSION[$this->flashKey][$key]['value'] ?? false) : false;
     }
 
     public function setAuth(object $auth): void 

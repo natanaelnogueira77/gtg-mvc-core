@@ -17,4 +17,10 @@ class BuildContext
     {
         return $this->engine->render($viewName, $data);
     }
+
+    public function addData(array $data): self
+    {
+        $this->engine->addData($data);
+        return $this;
+    }
 }

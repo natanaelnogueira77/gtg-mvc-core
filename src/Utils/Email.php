@@ -1,6 +1,6 @@
 <?php
 
-namespace GTG\MVC\Components;
+namespace GTG\MVC\Utils;
 
 use Exception;
 use PHPMailer\PHPMailer\PHPMailer;
