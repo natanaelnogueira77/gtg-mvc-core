@@ -1,18 +1,32 @@
 <?php 
 
-namespace GTG\MVC\Database;
+namespace GTG\MVC\Database\Statement;
 
 use DateTime, PDO, PDOException;
 use GTG\MVC\{ Application, Model };
-use GTG\MVC\Database\{ ActiveRecord, Database };
-use GTG\MVC\Database\Statement\Clauses\{ From, Limit, OrderBy, Select, Where };
+use GTG\MVC\Database\Database;
+use GTG\MVC\Database\Statement\Clauses\{
+    From, 
+    FullJoin, 
+    GroupBy, 
+    LeftJoin, 
+    InnerJoin, 
+    Join, 
+    Limit, 
+    OrderBy, 
+    RightJoin, 
+    Select, 
+    Where
+};
 use GTG\MVC\Exceptions\StatementException;
 
-final class ActiveRecordStatement 
+class Statement 
 {
     protected ?string $statement = null;
+    protected ?string $joins = null;
     protected ?string $filters = null;
     protected ?array $params = null;
+    protected ?string $group = null;
     protected ?string $order = null;
     protected ?string $limit = null;
     private Database $database;
@@ -42,14 +56,60 @@ final class ActiveRecordStatement
 
     private function getQuery(): string 
     {
-        return $this->statement . $this->filters . $this->order . $this->limit;
+        return $this->statement . $this->joins . $this->filters . $this->group . $this->order . $this->limit;
+    }
+
+    public function join(string|array $tableReferences, callable $callback): static 
+    {
+        $join = new Join($tableReferences);
+        $callback($join);
+        $this->joins .= ' ' . $join->build();
+        return $this;
+    }
+
+    public function leftJoin(string|array $tableReferences, callable $callback): static 
+    {
+        $leftJoin = new LeftJoin($tableReferences);
+        $callback($leftJoin);
+        $this->joins .= ' ' . $leftJoin->build();
+        return $this;
+    }
+
+    public function rightJoin(string|array $tableReferences, callable $callback): static 
+    {
+        $rightJoin = new RightJoin($tableReferences);
+        $callback($rightJoin);
+        $this->joins .= ' ' . $rightJoin->build();
+        return $this;
+    }
+
+    public function innerJoin(string|array $tableReferences, callable $callback): static 
+    {
+        $innerJoin = new InnerJoin($tableReferences);
+        $callback($innerJoin);
+        $this->joins .= ' ' . $innerJoin->build();
+        return $this;
+    }
+
+    public function fullJoin(string|array $tableReferences, callable $callback): static 
+    {
+        $fullJoin = new FullJoin($tableReferences);
+        $callback($fullJoin);
+        $this->joins .= ' ' . $fullJoin->build();
+        return $this;
     }
 
     public function filters(callable $callback): static 
     {
         $where = new Where();
-        call_user_func($callback, $where);
+        $callback($where);
         $this->filters = ' ' . $where->build();
+        return $this;
+    }
+
+    public function group(string $expression): static
+    {
+        $this->group = ' ' . (new GroupBy($expression))->build();
         return $this;
     }
 
@@ -87,14 +147,14 @@ final class ActiveRecordStatement
 
             return $stmt->fetchObject($this->className);
         } catch(PDOException $e) {
-            throw new StatementException($e->getMessage() . $this->getQuery());
+            throw new StatementException($e->getMessage());
         }
     }
 
     public function count(): int
     {
         try {
-            $stmt = $this->database->getConnection()->prepare($this->statement . $this->filters);
+            $stmt = $this->database->getConnection()->prepare($this->statement . $this->joins . $this->filters);
             $stmt->execute($this->params);
             return $stmt->rowCount();
         } catch(PDOException $e) {
