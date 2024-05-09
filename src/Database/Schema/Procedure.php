@@ -125,7 +125,8 @@ final class Procedure
     public function build(): string 
     {
         if($this->action == 'create') {
-            return "CREATE PROCEDURE `{$this->procedure}`(" . ($this->columns ? implode(', ', $this->columns) : '') 
+            return "CREATE PROCEDURE `{$this->procedure}`(" 
+                . ($this->columns ? implode(', ', array_map(fn($column) => $column->build(), $this->columns)) : '') 
                 . ') BEGIN ' . $this->statement . ' END;';
         } elseif($this->action == 'drop') {
             return "DROP PROCEDURE `{$this->procedure}`";
